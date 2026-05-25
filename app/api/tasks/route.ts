@@ -16,6 +16,7 @@ export async function GET(request: Request) {
     .eq('id', user.id)
     .maybeSingle()
   const userRole = profile?.role ?? 'member'
+  console.log('[DEBUG API] GET /api/tasks:', { userId: user.id, userRole, hasProfile: !!profile })
 
   const { searchParams } = new URL(request.url)
   const project_id = searchParams.get('project_id')
@@ -29,6 +30,19 @@ export async function GET(request: Request) {
 
   if (userRole === 'member' || assignee === 'me') {
     // Members always see only their assigned tasks
+    console.log('[DEBUG API] Filtering tasks for member:', user.id)
+    
+    // Debug: Check all tasks without RLS to see what exists
+    const { data: allTasksDebug, error: debugError } = await supabase
+      .from('tasks')
+      .select('id, title, assignee_id, status')
+    
+    const tasksForThisUser = allTasksDebug?.filter(t => t.assignee_id === user.id) || []
+    console.log('[DEBUG API] Total tasks in DB:', allTasksDebug?.length || 0, 'Tasks for this member:', tasksForThisUser.length)
+    if (tasksForThisUser.length > 0) {
+      console.log('[DEBUG API] Found tasks for member:', tasksForThisUser)
+    }
+    
     tasksQuery = tasksQuery.eq('assignee_id', user.id)
   } else {
     // Admin: filter by project or accessible projects
@@ -66,6 +80,13 @@ export async function GET(request: Request) {
   if (status && status !== 'overdue') tasksQuery = tasksQuery.eq('status', status)
 
   const { data: tasks, error } = await tasksQuery
+  console.log('[DEBUG API] Query results:', { 
+    taskCount: tasks?.length ?? 0, 
+    error: error?.message,
+    userId: user.id,
+    userRole,
+    filteringByAssigneeId: userRole === 'member'
+  })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   const now = new Date().toISOString().split('T')[0]

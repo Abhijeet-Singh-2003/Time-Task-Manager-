@@ -52,10 +52,13 @@ export default function DashboardPage() {
       // admin → all accessible project tasks
       const res = await fetch('/api/tasks', { credentials: 'include' })
       const data = await res.json()
+      console.log('[DEBUG Dashboard] Tasks response:', { status: res.status, data, role, isMember })
       if (!res.ok) throw new Error(data.error || 'Failed to load tasks')
       setTasks(data.tasks ?? [])
     } catch (err) {
-      setTasksError(err instanceof Error ? err.message : 'Failed to load tasks')
+      const errorMsg = err instanceof Error ? err.message : 'Failed to load tasks'
+      console.error('[DEBUG Dashboard] Failed to fetch tasks:', errorMsg)
+      setTasksError(errorMsg)
       setTasks([])
     } finally {
       setLoadingTasks(false)
@@ -149,14 +152,14 @@ export default function DashboardPage() {
                   : 'Here is what is happening with your projects and tasks today.'}
               </p>
             </div>
-            {isAdmin && (
-              <div className="mt-4 flex md:mt-0 md:ml-4 gap-2">
-                <Link
-                  href="/tasks"
-                  className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 bg-white hover:bg-gray-50"
-                >
-                  Manage Tasks
-                </Link>
+            <div className="mt-4 flex md:mt-0 md:ml-4 gap-2">
+              <Link
+                href="/tasks"
+                className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 bg-white hover:bg-gray-50"
+              >
+                Manage Tasks
+              </Link>
+              {isAdmin && (
                 <button
                   type="button"
                   onClick={openCreateModal}
@@ -165,8 +168,8 @@ export default function DashboardPage() {
                   <span aria-hidden="true">+</span>
                   Create Project
                 </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           {isMember ? (
