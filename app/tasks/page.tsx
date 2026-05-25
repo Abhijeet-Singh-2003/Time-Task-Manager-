@@ -9,8 +9,8 @@ interface Task {
   id: string
   title: string
   description?: string
-  status: 'todo' | 'in_progress' | 'completed'
-  priority?: 'low' | 'medium' | 'high'
+  status: 'todo' | 'in_progress' | 'review' | 'done'
+  priority?: 'low' | 'medium' | 'high' | 'critical'
   due_date?: string | null
   projects?: { id: string; name: string } | null
   profiles?: { id: string; name: string; email: string } | null
@@ -154,7 +154,7 @@ export default function TasksPage() {
                     task={t}
                     showCompleteToggle={role === 'member'}
                     onToggleComplete={async (id, completed) => {
-                      await fetch(`/api/tasks/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: completed ? 'completed' : 'todo' }) })
+                      await fetch(`/api/tasks/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: completed ? 'done' : 'todo' }) })
                       await refreshTasks()
                     }}
                     onDelete={role !== 'member' ? (id: string) => deleteTask(id) : undefined}
