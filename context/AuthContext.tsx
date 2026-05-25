@@ -25,42 +25,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [role, setRole] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    const loadProfileRole = async (userId: string) => {
+  const loadProfileRole = async (userId: string) => {
+    try {
       const { data: profile } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', userId)
         .maybeSingle()
       setRole(profile?.role ?? 'member')
+    } catch {
+      setRole('member')
     }
+  }
 
-    const getUser = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser()
-        setUser(user)
-        if (user) await loadProfileRole(user.id)
-        else setRole(null)
-      } catch (err) {
-        console.error('Auth load error:', err)
-        setUser(null)
-        setRole(null)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    getUser()
-
+  useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
-        setUser(session?.user ?? null)
-        if (session?.user) {
-          await loadProfileRole(session.user.id)
+        const currentUser = session?.user ?? null
+        setUser(currentUser)
+        setLoading(false)        // ← unblocks UI immediately
+
+        if (currentUser) {
+          loadProfileRole(currentUser.id)  // ← no await, runs in background
         } else {
           setRole(null)
         }
-        setLoading(false)
       }
     )
 

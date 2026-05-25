@@ -37,9 +37,11 @@ export default function DashboardPage() {
   const [tasksError, setTasksError] = useState<string | null>(null)
   const [projects, setProjects] = useState<Project[]>([])
   const [loadingProjects, setLoadingProjects] = useState(false)
+  const [users, setUsers] = useState<{ id: string; email: string; name?: string; role?: string }[]>([])
   const [showCreate, setShowCreate] = useState(false)
   const [projectName, setProjectName] = useState('')
   const [projectDescription, setProjectDescription] = useState('')
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([])
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
 
@@ -76,16 +78,30 @@ export default function DashboardPage() {
     }
   }
 
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch('/api/users', { credentials: 'include' })
+      const data = await res.json()
+      if (res.ok) setUsers(data.users ?? [])
+    } catch (err) {
+      console.error('Failed to fetch users:', err)
+    }
+  }
+
   useEffect(() => {
     if (role === null) return
     fetchTasks()
-    if (isAdmin) fetchProjects()
+    if (isAdmin) {
+      fetchProjects()
+      fetchUsers()
+    }
   }, [role])
 
   const openCreateModal = () => {
     setCreateError(null)
     setProjectName('')
     setProjectDescription('')
+    setSelectedMembers([])
     setShowCreate(true)
   }
 
@@ -104,11 +120,13 @@ export default function DashboardPage() {
         body: JSON.stringify({
           name: projectName.trim(),
           description: projectDescription.trim(),
+          memberIds: selectedMembers,
         }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to create project')
       setShowCreate(false)
+      setSelectedMembers([])
       await fetchProjects()
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : 'An error occurred')
@@ -368,6 +386,33 @@ export default function DashboardPage() {
                 onChange={(e) => setProjectDescription(e.target.value)}
                 disabled={creating}
               />
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Add Members (optional)</label>
+                <div className="border rounded-lg p-3 bg-gray-50 max-h-48 overflow-y-auto space-y-2">
+                  {users.length === 0 ? (
+                    <p className="text-sm text-gray-500">No users available</p>
+                  ) : (
+                    users.map((u) => (
+                      <label key={u.id} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedMembers.includes(u.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedMembers([...selectedMembers, u.id])
+                            } else {
+                              setSelectedMembers(selectedMembers.filter((id) => id !== u.id))
+                            }
+                          }}
+                          disabled={creating}
+                          className="rounded"
+                        />
+                        <span className="text-sm text-gray-900">{u.name || u.email} {u.role === 'admin' ? '(Admin)' : ''}</span>
+                      </label>
+                    ))
+                  )}
+                </div>
+              </div>
               <div className="flex justify-end gap-2">
                 <button
                   type="button"

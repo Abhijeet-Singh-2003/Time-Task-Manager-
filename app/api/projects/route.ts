@@ -104,7 +104,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const { name, description } = body
+  const { name, description, memberIds } = body
 
   if (!name?.trim()) {
     return NextResponse.json({ error: 'Project name is required' }, { status: 400 })
@@ -127,14 +127,33 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  const { error: memberError } = await supabase.from('project_members').insert({
+  // Add owner as project member
+  const { error: ownerError } = await supabase.from('project_members').insert({
     project_id: project.id,
     user_id: user.id,
     role: 'owner',
   })
 
-  if (memberError) {
-    console.error('project_members insert error:', memberError)
+  if (ownerError) {
+    console.error('project_members owner insert error:', ownerError)
+  }
+
+  // Add selected members if any
+  if (memberIds && memberIds.length > 0) {
+    const memberRecords = memberIds.map((memberId: string) => ({
+      project_id: project.id,
+      user_id: memberId,
+      role: 'member',
+    }))
+
+    const { error: membersError } = await supabase
+      .from('project_members')
+      .insert(memberRecords)
+
+    if (membersError) {
+      console.error('project_members insert error:', membersError)
+      // Don't fail the project creation if member addition fails
+    }
   }
 
   return NextResponse.json({ project }, { status: 201 })
