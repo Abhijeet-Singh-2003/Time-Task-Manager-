@@ -27,6 +27,7 @@ export default function TasksPage() {
   const [showCreate, setShowCreate] = useState(false)
   const [projects, setProjects] = useState<any[]>([])
   const [users, setUsers] = useState<User[]>([])
+  const [projectMembers, setProjectMembers] = useState<User[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(false)
   const [creating, setCreating] = useState(false)
@@ -38,24 +39,53 @@ export default function TasksPage() {
   const [projId, setProjId] = useState<string | null>(null)
   const [assigneeId, setAssigneeId] = useState<string | null>(null)
 
+  // Fetch project members when project is selected
+  const handleProjectChange = async (projectId: string | null) => {
+    setProjId(projectId)
+    setProjectMembers([])
+    
+    if (!projectId) return
+    
+    try {
+      const res = await fetch(`/api/projects/${projectId}/members`, { credentials: 'include' })
+      if (res.ok) {
+        const data = await res.json()
+        setProjectMembers(data.members ?? [])
+      }
+    } catch (err) {
+      console.error('Error fetching project members:', err)
+    }
+  }
+
+  // Determine which users to show: project members if available, otherwise all users
+  const availableUsers = projectMembers.length > 0 ? projectMembers : users
+
   useEffect(() => {
     if (role === null) return
     const load = async () => {
       setLoading(true)
       try {
         const p = await fetch('/api/projects', { credentials: 'include' })
-        const pd = await p.json()
-        setProjects(pd.projects ?? [])
+        if (p.ok) {
+          const pd = await p.json()
+          setProjects(pd.projects ?? [])
+        }
 
         const u = await fetch('/api/users', { credentials: 'include' })
-        const ud = await u.json()
-        setUsers(ud.users ?? [])
+        if (u.ok) {
+          const ud = await u.json()
+          setUsers(ud.users ?? [])
+        } else {
+          console.error('Failed to fetch users:', u.status, u.statusText)
+        }
 
         const tasksUrl =
           role === 'member' ? '/api/tasks?assignee=me' : '/api/tasks'
         const tRes = await fetch(tasksUrl, { credentials: 'include' })
         const td = await tRes.json()
         if (tRes.ok) setTasks(td.tasks ?? [])
+      } catch (err) {
+        console.error('Error loading data:', err)
       } finally {
         setLoading(false)
       }
@@ -168,13 +198,13 @@ export default function TasksPage() {
           open={showCreate}
           onClose={() => { setShowCreate(false); setCreateError(null) }}
           projects={projects}
-          users={users}
+          users={availableUsers}
           title={title}
           setTitle={setTitle}
           description={description}
           setDescription={setDescription}
           projId={projId}
-          setProjId={setProjId}
+          setProjId={handleProjectChange}
           assigneeId={assigneeId}
           setAssigneeId={setAssigneeId}
           onCreate={createTask}

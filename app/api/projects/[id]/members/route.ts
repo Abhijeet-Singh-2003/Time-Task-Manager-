@@ -14,8 +14,21 @@ export async function GET(_req: Request, { params }: RouteParams) {
     .select('user_id, role, profiles(id, name, email)')
     .eq('project_id', id)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ members: members ?? [] })
+  if (error) {
+    console.error('Error fetching project members:', error)
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  // Flatten the nested structure and filter out current user
+  const flattenedMembers = (members ?? [])
+    .map((m: any) => ({
+      id: m.profiles?.id,
+      name: m.profiles?.name,
+      email: m.profiles?.email,
+    }))
+    .filter((m: any) => m.id && m.id !== user.id)
+
+  return NextResponse.json({ members: flattenedMembers })
 }
 
 export async function POST(request: Request, { params }: RouteParams) {
